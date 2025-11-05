@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Enhanced Successfully</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .success-icon {
+            text-align: center;
+            font-size: 4em;
+            margin: 20px 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+
+        .download-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+        }
+
+        .download-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .section {
+            margin: 30px 0;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .gap-category {
+            background: #f8f9ff;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+        }
+
+        .gap-category h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .gap-category ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .gap-category li {
+            padding: 5px 0;
+            color: #555;
+        }
+
+        .gap-category li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .report-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .key-improvements {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .key-improvements h3 {
+            color: #4caf50;
+            margin-bottom: 15px;
+        }
+
+        .key-improvements ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .key-improvements li {
+            padding: 8px 0;
+            color: #555;
+        }
+
+        .key-improvements li:before {
+            content: "🎯 ";
+            margin-right: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1>Resume Enhanced Successfully!</h1>
+        <p class="subtitle">Your resume has been optimized for DFT/ATPG positions</p>
+
+        <div class="download-section">
+            <h2 style="color: white; margin-bottom: 20px;">Your Enhanced Resume is Ready</h2>
+            <a href="{{ url_for('download', filename=output_filename) }}" class="download-btn">
+                Download Enhanced Resume
+            </a>
+        </div>
+
+        <div class="key-improvements">
+            <h3>Key Improvements Made:</h3>
+            <ul>
+                <li>Added Tessent SSN (Streaming Scan Network) expertise</li>
+                <li>Highlighted pattern retargeting experience</li>
+                <li>Enhanced ATPG types (At-Speed, Path-Delay, Transition Fault)</li>
+                <li>Emphasized chip-level flow development</li>
+                <li>Added cross-functional collaboration skills</li>
+                <li>Structured skills to match industry requirements</li>
+                <li>Organized skills into clear categories for better readability</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('missing')">Missing Skills Added</button>
+                <button class="tab" onclick="showTab('report')">Full Gap Analysis</button>
+            </div>
+
+            <div id="missing-tab" class="tab-content active">
+                <h2>Skills & Tools Added to Your Resume</h2>
+                {% if missing_tools %}
+                    {% for category, tools in missing_tools.items() %}
+                        <div class="gap-category">
+                            <h3>{{ category }}</h3>
+                            <ul>
+                                {% for tool in tools %}
+                                    <li>{{ tool }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="gap-category">
+                        <p>Your resume already contains most of the required skills. We've reorganized and enhanced the presentation.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div id="report-tab" class="tab-content">
+                <h2>Detailed Gap Analysis Report</h2>
+                <div class="report-box">{{ gap_report }}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Next Steps:</h2>
+            <div class="gap-category">
+                <ul>
+                    <li>Review the enhanced resume and customize with specific project examples</li>
+                    <li>Add concrete examples of SSN and pattern retargeting work</li>
+                    <li>Update your professional summary to highlight chip-level expertise</li>
+                    <li>Prepare interview examples demonstrating cross-functional collaboration</li>
+                    <li>Tailor the summary section for specific job applications</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="{{ url_for('index') }}" class="back-btn">Enhance Another Resume</a>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

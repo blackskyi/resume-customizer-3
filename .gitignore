@@ -1,0 +1,15 @@
+*.pyc
+__pycache__/
+*.so
+*.egg
+*.egg-info
+dist/
+build/
+.env
+.venv
+venv/
+ENV/
+.DS_Store
+*.docx
+uploads/
+outputs/
