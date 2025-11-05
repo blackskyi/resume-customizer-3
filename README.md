@@ -1,15 +1,15 @@
 # Resume Customizer 3
 
-AI-Powered DFT/ATPG Resume Enhancement Tool
+AI-Powered Resume Customization Tool
 
 ## Features
 
-- Automatically enhances resumes with DFT/ATPG-specific skills
-- Adds missing tools: Tessent SSN, ATPG types, and more
-- Reorganizes skills section for maximum impact
-- Generates gap analysis report comparing resume to job requirements
-- Highlights pattern retargeting and chip-level flow expertise
-- Emphasizes cross-functional collaboration skills
+- **Universal Job Description Analysis**: Works with any job description from any industry
+- **Smart Skill Extraction**: Automatically identifies required skills, technologies, and tools from job descriptions
+- **Intelligent Resume Enhancement**: Adds missing skills while preserving your existing ones
+- **Gap Analysis Reports**: Generates detailed reports showing what skills were added and why
+- **Dynamic Categorization**: Organizes skills into relevant categories based on the job description
+- **Universal Application**: Works for tech, engineering, business, healthcare, and any other field
 
 ## Technology Stack
 
@@ -38,17 +38,16 @@ This application is configured for deployment on Railway with automatic deployme
 
 ## How It Works
 
-1. Upload your resume (.docx format)
-2. The tool analyzes your resume against DFT/ATPG job requirements
-3. Missing skills and tools are automatically added
-4. Skills section is reorganized for better presentation
-5. Download your enhanced resume and gap analysis report
+1. **Paste the Job Description**: Copy the complete job posting into the text area
+2. **Upload Your Resume**: Upload your current resume in .docx format
+3. **AI Analysis**: The tool extracts skills, technologies, and requirements from the job description using advanced pattern matching
+4. **Smart Enhancement**: Missing skills are intelligently added to your resume while preserving existing ones
+5. **Download Results**: Get your customized resume and a detailed gap analysis report
 
-## Skills Enhanced
+## Example Use Cases
 
-- DFT Methodologies
-- Test Methodologies (ATPG types)
-- DFT Tools & Platforms (Siemens Tessent, Synopsys)
-- Design & Verification
-- Programming & Scripting
-- Cross-functional collaboration
+- **Software Engineers**: Extracts programming languages, frameworks, cloud technologies, databases
+- **Data Scientists**: Identifies ML libraries, data tools, statistical methods
+- **Product Managers**: Recognizes methodologies, tools, collaboration frameworks
+- **Engineers**: Detects technical tools, software, industry-specific technologies
+- **Any Role**: Universal skill extraction works across all industries

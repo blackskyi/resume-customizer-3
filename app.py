@@ -22,46 +22,79 @@ ALLOWED_EXTENSIONS = {'docx'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def extract_skills_from_description(job_description):
+    """
+    Extract skills, tools, and technologies from job description
+    """
+    if not job_description or job_description.strip() == '':
+        return {}
+
+    jd_lower = job_description.lower()
+
+    # Common technical skill patterns
+    skill_patterns = {
+        'Programming Languages': r'\b(python|java|javascript|typescript|c\+\+|c#|ruby|go|rust|scala|kotlin|swift|r|matlab|perl|tcl|bash|shell)\b',
+        'Web Technologies': r'\b(react|angular|vue|node\.?js|express|django|flask|spring|\.net|asp\.net|html|css|jquery|bootstrap|tailwind)\b',
+        'Databases': r'\b(sql|mysql|postgresql|mongodb|oracle|redis|cassandra|dynamodb|sqlite|mariadb|elasticsearch)\b',
+        'Cloud & DevOps': r'\b(aws|azure|gcp|docker|kubernetes|jenkins|terraform|ansible|ci/cd|git|github|gitlab|bitbucket)\b',
+        'Data & ML': r'\b(machine learning|deep learning|tensorflow|pytorch|scikit-learn|pandas|numpy|spark|hadoop|kafka|airflow)\b',
+        'Testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|testing|qa|automation)\b',
+        'Methodologies': r'\b(agile|scrum|kanban|devops|tdd|bdd|ci/cd|waterfall)\b',
+    }
+
+    extracted_skills = {}
+
+    # Extract skills by pattern
+    for category, pattern in skill_patterns.items():
+        matches = re.findall(pattern, jd_lower, re.IGNORECASE)
+        if matches:
+            # Deduplicate and capitalize properly
+            unique_skills = list(set(matches))
+            extracted_skills[category] = unique_skills
+
+    # Extract requirements/qualifications sections
+    requirements = []
+    req_patterns = [
+        r'(?:requirements?|qualifications?|skills?)[:\s]+([^\n]+(?:\n[^\n]+){0,20})',
+        r'(?:must have|required)[:\s]+([^\n]+(?:\n[^\n]+){0,10})',
+        r'(?:experience with|proficiency in)[:\s]+([^\n]+(?:\n[^\n]+){0,10})'
+    ]
+
+    for pattern in req_patterns:
+        matches = re.findall(pattern, job_description, re.IGNORECASE | re.MULTILINE)
+        requirements.extend(matches)
+
+    # Extract bullet points (common in job descriptions)
+    bullet_points = re.findall(r'[•\-\*]\s*([^\n]+)', job_description)
+
+    # Combine all extracted text
+    all_requirements_text = ' '.join(requirements + bullet_points)
+
+    # Extract any mentioned tools/technologies (capitalized words or known acronyms)
+    tech_words = re.findall(r'\b[A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*)*\b', all_requirements_text)
+
+    # Filter out common non-technical words
+    common_words = {'The', 'A', 'An', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'And', 'Or', 'But', 'Not', 'This', 'That', 'These', 'Those', 'Will', 'Should', 'Must', 'Can', 'May', 'Has', 'Have', 'Had', 'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being'}
+    tech_words = [word for word in tech_words if word not in common_words and len(word) > 2]
+
+    if tech_words:
+        extracted_skills['Tools & Technologies'] = list(set(tech_words))[:15]  # Limit to top 15
+
+    return extracted_skills
+
+
 def analyze_gaps(current_resume_path, job_description):
     """
     Analyze gaps between current resume and job requirements
     """
-    # Tools mentioned in job description
-    job_tools = {
-        'DFT Tools': [
-            'Siemens Tessent SSN (Streaming Scan Network)',
-            'Siemens Tessent ATPG',
-            'Tessent Scan Compression',
-            'Tessent FastScan',
-            'Tessent Shell'
-        ],
-        'Design & Verification': [
-            'Verilog',
-            'SystemVerilog',
-            'Logic Synthesis',
-            'Static Timing Analysis (STA)',
-            'RTL Simulation',
-            'Gate-level Simulation',
-            'SDF (Standard Delay Format)'
-        ],
-        'Scripting': [
-            'Perl',
-            'Tcl',
-            'Python',
-            'Shell scripting (Bash)'
-        ],
-        'ATPG Types': [
-            'Stuck-At Fault ATPG',
-            'At-Speed ATPG',
-            'Path-Delay ATPG',
-            'Transition Fault ATPG'
-        ],
-        'Environment': [
-            'Linux/Unix',
-            'Cross-functional team collaboration',
-            'Global team coordination'
-        ]
-    }
+    # Extract skills from job description
+    job_tools = extract_skills_from_description(job_description)
+
+    if not job_tools:
+        # Fallback to generic professional skills if no job description provided
+        job_tools = {
+            'Core Skills': ['Communication', 'Problem Solving', 'Team Collaboration', 'Time Management']
+        }
 
     # Read current resume
     doc = Document(current_resume_path)
@@ -73,20 +106,20 @@ def analyze_gaps(current_resume_path, job_description):
         missing = []
         for tool in tools:
             # Check if tool or its key component is in resume
-            tool_keywords = tool.lower().replace('(', '').replace(')', '').split()
-            if not any(keyword in resume_text for keyword in tool_keywords if len(keyword) > 3):
+            tool_keywords = str(tool).lower().replace('(', '').replace(')', '').split()
+            if not any(keyword in resume_text for keyword in tool_keywords if len(keyword) > 2):
                 missing.append(tool)
         if missing:
             missing_tools[category] = missing
 
     return missing_tools, job_tools
 
-def enhance_resume(input_path, output_path):
+def enhance_resume(input_path, output_path, job_description):
     """
     Enhance resume by adding missing tools and reorganizing skills section
     """
     # Analyze gaps
-    missing_tools, all_job_tools = analyze_gaps(input_path, None)
+    missing_tools, all_job_tools = analyze_gaps(input_path, job_description)
 
     # Load document
     doc = Document(input_path)
@@ -102,58 +135,43 @@ def enhance_resume(input_path, output_path):
         print("Warning: Could not find 'Key Skills' section. Skills will be added at the end.")
         skills_section_index = len(doc.paragraphs) - 1
 
-    # Enhanced skills structure based on job requirements
-    enhanced_skills = {
-        'DFT Methodologies': [
-            'DFT implementation',
-            'Hierarchical DFT flow',
-            'Scan chain design',
-            'Test compression (EDT, OPMISR)',
-            'Fault simulation',
-            'IP and SoC-level DFT',
-            'Pattern retargeting',
-            'Scan timing analysis'
-        ],
-        'Test Methodologies': [
-            'ATPG (Stuck-At, At-Speed, Path-Delay, Transition Fault)',
-            'MBIST (Memory BIST)',
-            'Logic BIST',
-            'Scan insertion',
-            'Test point insertion',
-            'Boundary Scan (JTAG)'
-        ],
-        'DFT Tools & Platforms': [
-            'Siemens Tessent (ATPG, FastScan, Shell)',
-            'Siemens Tessent SSN (Streaming Scan Network)',
-            'Siemens Tessent Scan Compression',
-            'Synopsys Tetramax',
-            'Synopsys DFTMAX',
-            'ATE platforms (pattern generation & validation)'
-        ],
-        'Design & Verification': [
-            'Verilog/SystemVerilog RTL design',
-            'Logic Synthesis',
-            'Static Timing Analysis (STA) in test mode',
-            'RTL/Gate-level/SDF simulation',
-            'Design quality checks (lint, CDC)',
-            'SoC integration & chip-level flows'
-        ],
-        'Programming & Scripting': [
-            'Python (automation, test flows)',
-            'Tcl (tool scripting)',
-            'Perl (pattern manipulation)',
-            'Bash/Shell scripting',
-            'Linux/Unix environment'
-        ],
-        'Additional Technical Skills': [
-            'Complex chip-level DFT flow development',
-            'Pattern retargeting and simulation',
-            'Cross-functional team collaboration',
-            'Global team coordination',
-            'Silicon bring-up support',
-            'Test engineering collaboration'
-        ]
-    }
+    # Read existing skills from resume
+    existing_skills = {}
+    if skills_section_index is not None:
+        for i in range(skills_section_index + 1, len(doc.paragraphs)):
+            para_text = doc.paragraphs[i].text.strip()
+            if not para_text:
+                continue
+            # Check if it's a new section header (capitalized, no colon in first part)
+            if para_text and para_text[0].isupper() and ':' not in para_text[:20] and len(para_text) > 20:
+                break
+            # Try to parse skill category lines
+            if ':' in para_text:
+                parts = para_text.split(':', 1)
+                if len(parts) == 2:
+                    category = parts[0].strip()
+                    skills = [s.strip() for s in parts[1].split(',')]
+                    existing_skills[category] = skills
+
+    # Merge job requirements with existing skills
+    enhanced_skills = {}
+
+    # First, preserve existing skills
+    for category, skills in existing_skills.items():
+        enhanced_skills[category] = skills
+
+    # Then add missing skills from job description
+    for category, tools in all_job_tools.items():
+        if category in enhanced_skills:
+            # Merge with existing
+            for tool in tools:
+                tool_str = str(tool).title() if isinstance(tool, str) else str(tool)
+                # Check if skill is already there
+                if not any(tool_str.lower() in existing.lower() for existing in enhanced_skills[category]):
+                    enhanced_skills[category].append(tool_str)
+        else:
+            # Add new category
+            enhanced_skills[category] = [str(tool).title() if isinstance(tool, str) else str(tool) for tool in tools]
 
     # Find where to insert enhanced skills
     # Remove old skills section content
@@ -203,11 +221,11 @@ def enhance_resume(input_path, output_path):
 
     return new_doc, missing_tools
 
-def create_gap_analysis_report(input_path):
+def create_gap_analysis_report(input_path, job_description):
     """
     Create a detailed gap analysis report
     """
-    missing_tools, all_job_tools = analyze_gaps(input_path, None)
+    missing_tools, all_job_tools = analyze_gaps(input_path, job_description)
 
     report = []
     report.append("="*70)
@@ -216,30 +234,28 @@ def create_gap_analysis_report(input_path):
     report.append("")
 
     report.append("-"*70)
-    report.append("CRITICAL TOOLS TO HIGHLIGHT (Top Priority):")
+    report.append("SKILLS IDENTIFIED FROM JOB DESCRIPTION:")
     report.append("-"*70)
     report.append("")
 
-    critical_tools = [
-        "Siemens Tessent ATPG",
-        "Siemens Tessent SSN (Streaming Scan Network)",
-        "Pattern retargeting flows",
-        "Chip-level DFT flow development"
-    ]
-
-    for tool in critical_tools:
-        report.append(f"  ☑ {tool}")
-
-    report.append("")
-    report.append("-"*70)
-    report.append("TOOLS/SKILLS GAPS IDENTIFIED:")
-    report.append("-"*70)
-    report.append("")
-
-    for category, tools in missing_tools.items():
+    for category, tools in all_job_tools.items():
         report.append(f"\n{category}:")
-        for tool in tools:
+        for tool in tools[:10]:  # Limit to first 10 per category
             report.append(f"  • {tool}")
+
+    report.append("")
+    report.append("-"*70)
+    report.append("SKILLS/TOOLS MISSING FROM YOUR RESUME:")
+    report.append("-"*70)
+    report.append("")
+
+    if missing_tools:
+        for category, tools in missing_tools.items():
+            report.append(f"\n{category}:")
+            for tool in tools:
+                report.append(f"  • {tool}")
+    else:
+        report.append("Great! Your resume already contains most of the required skills.")
 
     report.append("")
     report.append("="*70)
@@ -248,14 +264,12 @@ def create_gap_analysis_report(input_path):
     report.append("")
 
     recommendations = [
-        "Emphasize your Tessent experience prominently in summary",
-        "Add specific examples of SSN (Streaming Scan Network) work",
-        "Highlight pattern retargeting experience",
-        "Mention chip-level flow development projects",
-        "Include examples of cross-functional team collaboration",
-        "Add specific ATPG types experience (At-Speed, Path-Delay)",
-        "Mention any global team coordination experience",
-        "Highlight Linux scripting expertise (Perl, Tcl, Python)"
+        "Review the enhanced resume and verify the added skills match your experience",
+        "Add specific project examples demonstrating these skills",
+        "Customize the professional summary to highlight key technologies",
+        "Quantify your achievements where possible (e.g., improved performance by X%)",
+        "Ensure your experience section demonstrates the listed skills in action",
+        "Proofread for consistency in terminology and formatting"
     ]
 
     for i, rec in enumerate(recommendations, 1):
@@ -277,9 +291,14 @@ def enhance():
         return redirect(url_for('index'))
 
     file = request.files['resume']
+    job_description = request.form.get('job_description', '').strip()
 
     if file.filename == '':
         flash('No file selected')
+        return redirect(url_for('index'))
+
+    if not job_description:
+        flash('Please provide a job description')
         return redirect(url_for('index'))
 
     if file and allowed_file(file.filename):
@@ -289,15 +308,15 @@ def enhance():
 
         # Generate output filename
         base_name = os.path.splitext(filename)[0]
-        output_filename = f"{base_name}_Enhanced.docx"
+        output_filename = f"{base_name}_Customized.docx"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         try:
             # Enhance the resume
-            enhanced_doc, missing_tools = enhance_resume(input_path, output_path)
+            enhanced_doc, missing_tools = enhance_resume(input_path, output_path, job_description)
 
             # Create gap analysis report
-            gap_report = create_gap_analysis_report(input_path)
+            gap_report = create_gap_analysis_report(input_path, job_description)
 
             # Clean up input file
             os.remove(input_path)
@@ -308,6 +327,8 @@ def enhance():
                                    gap_report=gap_report)
         except Exception as e:
             flash(f'Error processing resume: {str(e)}')
+            if os.path.exists(input_path):
+                os.remove(input_path)
             return redirect(url_for('index'))
     else:
         flash('Invalid file type. Please upload a .docx file')

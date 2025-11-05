@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Customizer 3 - DFT/ATPG Resume Enhancement</title>
+    <title>Resume Customizer 3 - AI-Powered Resume Enhancement</title>
     <style>
         * {
             margin: 0;
@@ -44,6 +44,10 @@
             font-size: 1.1em;
         }
 
+        .text-center {
+            text-align: center;
+        }
+
         .feature-box {
             background: #f8f9ff;
             border-left: 4px solid #667eea;
@@ -78,8 +82,41 @@
             background: #f8f9ff;
             padding: 30px;
             border-radius: 12px;
-            text-align: center;
             margin-top: 30px;
+        }
+
+        .form-group {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 0.95em;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea::placeholder {
+            color: #999;
         }
 
         .file-input-wrapper {
@@ -191,7 +228,7 @@
 <body>
     <div class="container">
         <h1>Resume Customizer 3</h1>
-        <p class="subtitle">AI-Powered DFT/ATPG Resume Enhancement Tool</p>
+        <p class="subtitle">AI-Powered Resume Customization Tool</p>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -206,43 +243,65 @@
         <div class="feature-box">
             <h3>What This Tool Does:</h3>
             <ul>
-                <li>Automatically enhances your resume with DFT/ATPG-specific skills</li>
-                <li>Adds missing tools: Tessent SSN, ATPG types, and more</li>
-                <li>Reorganizes skills section for maximum impact</li>
-                <li>Generates gap analysis report comparing your resume to job requirements</li>
-                <li>Highlights pattern retargeting and chip-level flow expertise</li>
-                <li>Emphasizes cross-functional collaboration skills</li>
+                <li>Analyzes job descriptions to extract required skills and technologies</li>
+                <li>Automatically adds missing skills from the job description to your resume</li>
+                <li>Preserves your existing skills while adding new relevant ones</li>
+                <li>Generates detailed gap analysis report</li>
+                <li>Reorganizes skills section for better presentation</li>
+                <li>Works for any industry or position</li>
             </ul>
         </div>
 
         <div class="upload-section">
-            <h3>Upload Your Resume</h3>
-            <p style="color: #666; margin: 10px 0;">Supported format: .docx (Microsoft Word)</p>
-
             <form method="POST" action="/enhance" enctype="multipart/form-data" id="uploadForm">
-                <div class="file-input-wrapper">
-                    <label for="resume" class="file-input-label">
-                        Choose Resume File
-                    </label>
-                    <input type="file" id="resume" name="resume" accept=".docx" required>
+                <div class="form-group">
+                    <label for="job_description">Job Description *</label>
+                    <textarea
+                        id="job_description"
+                        name="job_description"
+                        placeholder="Paste the complete job description here...
+
+Example:
+We are looking for a Software Engineer with experience in Python, React, and AWS.
+Requirements:
+- 3+ years of experience with Python
+- Strong knowledge of React and JavaScript
+- Experience with cloud platforms (AWS preferred)
+- Familiarity with Docker and Kubernetes
+..."
+                        required></textarea>
                 </div>
-                <div class="file-name" id="fileName">No file chosen</div>
-                <button type="submit" class="submit-btn" id="submitBtn" disabled>Enhance My Resume</button>
+
+                <div class="form-group text-center">
+                    <label for="resume">Upload Your Resume *</label>
+                    <p style="color: #666; margin: 10px 0;">Supported format: .docx (Microsoft Word)</p>
+                    <div class="file-input-wrapper">
+                        <label for="resume" class="file-input-label">
+                            Choose Resume File
+                        </label>
+                        <input type="file" id="resume" name="resume" accept=".docx" required>
+                    </div>
+                    <div class="file-name" id="fileName">No file chosen</div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="submit-btn" id="submitBtn" disabled>Customize My Resume</button>
+                </div>
             </form>
         </div>
 
         <div class="info-grid">
             <div class="info-card">
                 <h4>Smart Enhancement</h4>
-                <p>Analyzes your resume and adds relevant DFT/ATPG skills</p>
+                <p>Automatically extracts skills from any job description</p>
             </div>
             <div class="info-card">
                 <h4>Gap Analysis</h4>
-                <p>Identifies missing skills compared to job requirements</p>
+                <p>Identifies missing skills and generates detailed report</p>
             </div>
             <div class="info-card">
-                <h4>Industry-Focused</h4>
-                <p>Optimized for semiconductor DFT engineer positions</p>
+                <h4>Universal</h4>
+                <p>Works for any industry, role, or position</p>
             </div>
         </div>
     </div>
@@ -251,16 +310,26 @@
         const fileInput = document.getElementById('resume');
         const fileName = document.getElementById('fileName');
         const submitBtn = document.getElementById('submitBtn');
+        const jobDescription = document.getElementById('job_description');
+
+        function checkFormValidity() {
+            if (fileInput.files.length > 0 && jobDescription.value.trim().length > 0) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
 
         fileInput.addEventListener('change', function(e) {
             if (e.target.files.length > 0) {
                 fileName.textContent = e.target.files[0].name;
-                submitBtn.disabled = false;
             } else {
                 fileName.textContent = 'No file chosen';
-                submitBtn.disabled = true;
             }
+            checkFormValidity();
         });
+
+        jobDescription.addEventListener('input', checkFormValidity);
 
         document.getElementById('uploadForm').addEventListener('submit', function() {
             submitBtn.textContent = 'Processing...';
