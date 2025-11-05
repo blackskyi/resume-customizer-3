@@ -89,11 +89,13 @@ def extract_skills_from_description(job_description):
         'Location', 'Remote', 'Onsite', 'Hybrid', 'Office', 'City', 'State', 'Country',
         'Santa', 'Clara', 'San', 'Francisco', 'Jose', 'Diego', 'Angeles', 'York', 'Seattle',
         'Austin', 'Boston', 'Denver', 'Portland', 'Chicago', 'Atlanta', 'Dallas', 'Houston',
+        'California', 'Texas', 'Washington', 'Oregon', 'Colorado', 'Massachusetts',
 
         # Job-related generic words
         'Job', 'Position', 'Role', 'Candidate', 'Candidates', 'Team', 'Member', 'Members',
         'Company', 'Work', 'Working', 'Works', 'Worked', 'Responsibilities', 'Responsibility',
         'Requirements', 'Requirement', 'Qualifications', 'Qualification', 'Skills', 'Skill',
+        'Description', 'Descriptions',
 
         # Descriptive words
         'Strong', 'Excellent', 'Good', 'Great', 'Best', 'Better', 'Deep', 'Solid', 'Proven',
@@ -111,7 +113,10 @@ def extract_skills_from_description(job_description):
 
         # Generic terms
         'Thanks', 'Please', 'Note', 'Include', 'Summary', 'Overview', 'Description', 'Details',
-        'Information', 'Contact', 'Apply', 'Application', 'Resume', 'Cover', 'Letter'
+        'Information', 'Contact', 'Apply', 'Application', 'Resume', 'Cover', 'Letter',
+
+        # Acronyms that are not technical
+        'GLS', 'USA', 'US'
     }
 
     # Additional pattern-based filters for non-technical content
@@ -234,53 +239,61 @@ def enhance_resume(input_path, output_path, job_description):
             # Add new category
             enhanced_skills[category] = [str(tool).title() if isinstance(tool, str) else str(tool) for tool in tools]
 
-    # Find where to insert enhanced skills
-    # Remove old skills section content
-    paragraphs_to_remove = []
+    # Modify the existing skills section in-place to preserve all formatting
     if skills_section_index is not None:
+        # Find existing skill lines and update them
+        skill_lines_indices = []
         for i in range(skills_section_index + 1, len(doc.paragraphs)):
-            if doc.paragraphs[i].text.strip() and not doc.paragraphs[i].text.strip().startswith(tuple('ABCDEFGHIJKLMNOPQRSTUVWXYZ')):
-                paragraphs_to_remove.append(i)
-            elif doc.paragraphs[i].text.strip() and doc.paragraphs[i].text.strip()[0].isupper() and ':' not in doc.paragraphs[i].text[:20]:
+            para_text = doc.paragraphs[i].text.strip()
+            if not para_text:
+                continue
+            # Check if we've reached the next major section
+            if para_text and para_text[0].isupper() and ':' not in para_text[:20] and len(para_text) > 20:
                 break
+            # This is a skill line
+            if ':' in para_text:
+                skill_lines_indices.append(i)
 
-    # Create new document with enhanced skills
-    new_doc = Document()
+        # Update existing skill lines and track how many we've used
+        skills_list = list(enhanced_skills.items())
 
-    # Copy all paragraphs up to skills section
-    for i in range(skills_section_index + 1):
-        new_para = new_doc.add_paragraph()
-        new_para.text = doc.paragraphs[i].text
-        new_para.style = doc.paragraphs[i].style
-        # Copy formatting
-        if doc.paragraphs[i].runs:
-            new_para.runs[0].bold = doc.paragraphs[i].runs[0].bold
-            new_para.runs[0].font.size = doc.paragraphs[i].runs[0].font.size
+        for idx, line_idx in enumerate(skill_lines_indices):
+            if idx < len(skills_list):
+                category, skills = skills_list[idx]
+                para = doc.paragraphs[line_idx]
 
-    # Add enhanced skills
-    for category, skills in enhanced_skills.items():
-        skill_para = new_doc.add_paragraph()
-        skill_para.add_run(f"{category}: ").bold = True
-        skill_para.add_run(', '.join(skills))
-        skill_para.style = 'Normal'
+                # Clear existing content
+                para.clear()
 
-    # Copy remaining content (skip old skills)
-    copy_remaining = False
-    for i in range(skills_section_index + 1, len(doc.paragraphs)):
-        if copy_remaining or (doc.paragraphs[i].text.strip() and
-                              doc.paragraphs[i].text.strip()[0].isupper() and
-                              ':' not in doc.paragraphs[i].text[:30] and
-                              i not in paragraphs_to_remove):
-            copy_remaining = True
-            if i not in paragraphs_to_remove:
-                new_para = new_doc.add_paragraph()
-                new_para.text = doc.paragraphs[i].text
-                new_para.style = doc.paragraphs[i].style
+                # Add new content with formatting
+                run1 = para.add_run(f"{category}: ")
+                run1.bold = True
+                run2 = para.add_run(', '.join(skills))
 
-    # Save enhanced resume
-    new_doc.save(output_path)
+        # If we have more skills than existing lines, add new paragraphs
+        if len(skills_list) > len(skill_lines_indices):
+            # Find where to insert (after last skill line or after header)
+            insert_after_idx = skill_lines_indices[-1] if skill_lines_indices else skills_section_index
 
-    return new_doc, missing_tools
+            for idx in range(len(skill_lines_indices), len(skills_list)):
+                category, skills = skills_list[idx]
+
+                # Insert paragraph at the right position
+                new_para = doc.add_paragraph()
+                run1 = new_para.add_run(f"{category}: ")
+                run1.bold = True
+                run2 = new_para.add_run(', '.join(skills))
+
+                # Move it to the correct position
+                para_element = new_para._element
+                para_element.getparent().remove(para_element)
+                doc.paragraphs[insert_after_idx]._element.addnext(para_element)
+                insert_after_idx += 1
+
+    # Save enhanced resume (preserves all original formatting, layout, fonts, spacing)
+    doc.save(output_path)
+
+    return doc, missing_tools
 
 def create_gap_analysis_report(input_path, job_description):
     """

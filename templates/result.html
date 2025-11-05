@@ -292,6 +292,14 @@
             document.getElementById(tabName + '-tab').classList.add('active');
             event.target.classList.add('active');
         }
+
+        // Auto-download the resume when page loads
+        window.addEventListener('load', function() {
+            // Trigger download automatically
+            setTimeout(function() {
+                window.location.href = "{{ url_for('download', filename=output_filename) }}";
+            }, 1000); // Wait 1 second before downloading
+        });
     </script>
 </body>
 </html>
