@@ -33,13 +33,14 @@ def extract_skills_from_description(job_description):
 
     # Common technical skill patterns
     skill_patterns = {
-        'Programming Languages': r'\b(python|java|javascript|typescript|c\+\+|c#|ruby|go|rust|scala|kotlin|swift|r|matlab|perl|tcl|bash|shell)\b',
+        'Programming Languages': r'\b(python|java|javascript|typescript|c\+\+|c#|ruby|go|rust|scala|kotlin|swift|r|matlab|perl|tcl|bash|shell|verilog|systemverilog|vhdl)\b',
         'Web Technologies': r'\b(react|angular|vue|node\.?js|express|django|flask|spring|\.net|asp\.net|html|css|jquery|bootstrap|tailwind)\b',
         'Databases': r'\b(sql|mysql|postgresql|mongodb|oracle|redis|cassandra|dynamodb|sqlite|mariadb|elasticsearch)\b',
         'Cloud & DevOps': r'\b(aws|azure|gcp|docker|kubernetes|jenkins|terraform|ansible|ci/cd|git|github|gitlab|bitbucket)\b',
         'Data & ML': r'\b(machine learning|deep learning|tensorflow|pytorch|scikit-learn|pandas|numpy|spark|hadoop|kafka|airflow)\b',
-        'Testing': r'\b(junit|pytest|selenium|cypress|jest|mocha|testing|qa|automation)\b',
+        'Testing & QA': r'\b(junit|pytest|selenium|cypress|jest|mocha|atpg|dft|bist|mbist|lbist|scan|jtag)\b',
         'Methodologies': r'\b(agile|scrum|kanban|devops|tdd|bdd|ci/cd|waterfall)\b',
+        'Hardware/Semiconductor Tools': r'\b(tessent|testmax|fastscan|tetramax|dftmax|spyglass|primetime|design compiler|genus|icc|innovus|encounter|calibre|hercules|virtuoso|spectre|hspice|cadence|synopsys|mentor|siemens|xilinx|altera|quartus|vivado)\b',
     }
 
     extracted_skills = {}
@@ -73,9 +74,69 @@ def extract_skills_from_description(job_description):
     # Extract any mentioned tools/technologies (capitalized words or known acronyms)
     tech_words = re.findall(r'\b[A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*)*\b', all_requirements_text)
 
-    # Filter out common non-technical words
-    common_words = {'The', 'A', 'An', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'And', 'Or', 'But', 'Not', 'This', 'That', 'These', 'Those', 'Will', 'Should', 'Must', 'Can', 'May', 'Has', 'Have', 'Had', 'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being'}
-    tech_words = [word for word in tech_words if word not in common_words and len(word) > 2]
+    # Comprehensive filter for non-technical words
+    non_technical_words = {
+        # Articles, prepositions, conjunctions
+        'The', 'A', 'An', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'And', 'Or', 'But', 'Not',
+        'This', 'That', 'These', 'Those', 'Will', 'Should', 'Must', 'Can', 'May', 'Has', 'Have', 'Had',
+        'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being', 'Do', 'Does', 'Did', 'Done',
+
+        # Time-related words
+        'Years', 'Year', 'Months', 'Month', 'Weeks', 'Week', 'Days', 'Day', 'Duration', 'Time',
+        'Hours', 'Hour', 'Experience', 'Experienced',
+
+        # Location-related words
+        'Location', 'Remote', 'Onsite', 'Hybrid', 'Office', 'City', 'State', 'Country',
+        'Santa', 'Clara', 'San', 'Francisco', 'Jose', 'Diego', 'Angeles', 'York', 'Seattle',
+        'Austin', 'Boston', 'Denver', 'Portland', 'Chicago', 'Atlanta', 'Dallas', 'Houston',
+
+        # Job-related generic words
+        'Job', 'Position', 'Role', 'Candidate', 'Candidates', 'Team', 'Member', 'Members',
+        'Company', 'Work', 'Working', 'Works', 'Worked', 'Responsibilities', 'Responsibility',
+        'Requirements', 'Requirement', 'Qualifications', 'Qualification', 'Skills', 'Skill',
+
+        # Descriptive words
+        'Strong', 'Excellent', 'Good', 'Great', 'Best', 'Better', 'Deep', 'Solid', 'Proven',
+        'Ability', 'Abilities', 'Knowledge', 'Understanding', 'Preferred', 'Required', 'Desired',
+        'Plus', 'Bonus', 'Nice', 'Including', 'Such', 'Other', 'Various', 'Multiple', 'Several',
+
+        # Action/Status words
+        'Conduct', 'Provide', 'Perform', 'Develop', 'Create', 'Build', 'Design', 'Implement',
+        'Maintain', 'Support', 'Manage', 'Lead', 'Coordinate', 'Collaborate', 'Communicate',
+        'Availability', 'Available', 'Immediately', 'Successful', 'Completion',
+
+        # Degree/Education words
+        'Degree', 'Bachelor', 'Masters', 'PhD', 'BS', 'MS', 'BA', 'MA', 'Engineering', 'Science',
+        'Computer', 'Electrical', 'Mechanical', 'Software', 'Hardware',
+
+        # Generic terms
+        'Thanks', 'Please', 'Note', 'Include', 'Summary', 'Overview', 'Description', 'Details',
+        'Information', 'Contact', 'Apply', 'Application', 'Resume', 'Cover', 'Letter'
+    }
+
+    # Additional pattern-based filters for non-technical content
+    def is_technical_term(word):
+        # Filter out words that are clearly non-technical
+        if word in non_technical_words:
+            return False
+        if len(word) < 3:  # Too short
+            return False
+        if word.lower() in ['inc', 'llc', 'ltd', 'corp', 'corporation']:  # Company suffixes
+            return False
+        if re.match(r'^[A-Z][a-z]+$', word) and word not in ['Git', 'Rust', 'Go', 'Java', 'Ruby', 'Swift', 'Perl']:
+            # Single capitalized word (likely a name/location), unless it's a known language
+            return False
+        return True
+
+    tech_words = [word for word in tech_words if is_technical_term(word)]
+
+    # Additional known technical terms/tools to look for (case-insensitive)
+    known_tech_patterns = r'\b(verilog|systemverilog|vhdl|atpg|dft|bist|mbist|lbist|jtag|scan|testmax|tessent|fastscan|spyglass|lint|cdc|rdc|sta|synthesis|primetime|design compiler|genus|conformal|formality|calibre|icv|hercules|dracula|assura|mentor|cadence|synopsys|siemens|xilinx|altera|fpga|asic|soc|rtl|gls|netlist|sdf|spef|sdcl|upf|cpf)\b'
+
+    additional_tech = re.findall(known_tech_patterns, jd_lower, re.IGNORECASE)
+    if additional_tech:
+        # Capitalize properly
+        tech_words.extend([t.upper() if len(t) <= 4 else t.title() for t in set(additional_tech)])
 
     if tech_words:
         extracted_skills['Tools & Technologies'] = list(set(tech_words))[:15]  # Limit to top 15
