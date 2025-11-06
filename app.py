@@ -6,6 +6,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import re
 from io import BytesIO
+from anthropic import Anthropic
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -19,16 +20,110 @@ os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'docx'}
 
+# Initialize Claude API client
+claude_client = None
+api_key = os.environ.get('ANTHROPIC_API_KEY')
+if api_key:
+    try:
+        claude_client = Anthropic(api_key=api_key)
+        print('✅ Claude API initialized successfully')
+    except Exception as e:
+        print(f'⚠️ Claude API initialization failed: {e}')
+else:
+    print('⚠️ ANTHROPIC_API_KEY not set - will use regex-only extraction')
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def extract_skills_with_claude(job_description):
+    """
+    Use Claude API to intelligently extract technical skills from job description
+    """
+    if not claude_client:
+        print('⚠️ Claude API not available, falling back to regex extraction')
+        return None
+
+    try:
+        prompt = f"""You are an expert technical recruiter. Extract ALL technical skills, tools, technologies, and keywords from this job description.
+
+Job Description:
+{job_description}
+
+Extract and categorize the technical requirements into these categories:
+- Programming Languages (e.g., Python, Java, .NET, C#, etc.)
+- Cloud Platforms (e.g., AWS, Azure, GCP)
+- DevOps & CI/CD Tools (e.g., Jenkins, GitLab CI/CD, GitHub Actions, Pipeline tools)
+- Infrastructure as Code (e.g., Terraform, Ansible, CloudFormation)
+- Containers & Orchestration (e.g., Docker, Kubernetes)
+- Databases (e.g., PostgreSQL, MongoDB, DynamoDB)
+- Monitoring & Observability (e.g., Prometheus, Grafana, DataDog)
+- Security Tools (e.g., Security Integration, Secrets Management)
+- AI/ML Technologies (e.g., AI/ML, Machine Learning, TensorFlow)
+- Operating Systems (e.g., Linux, Windows Administration)
+- Build & Deployment (e.g., Build Automation, Deployment Automation, Maven, Gradle)
+- Other Technical Skills
+
+IMPORTANT:
+- Extract EXACT phrases from the job description (e.g., if it says ".NET Build", extract ".NET Build" not just ".NET")
+- Include compound terms (e.g., "GitLab CI/CD", "Pipeline Mastery", "Security Integration")
+- Focus on TECHNICAL keywords only, ignore soft skills
+- Include years of experience requirements with the skill (e.g., "4+ yrs Terraform")
+
+Return ONLY a JSON object in this format:
+{{
+  "Programming Languages": ["skill1", "skill2"],
+  "Cloud Platforms": ["skill1"],
+  "DevOps & CI/CD Tools": ["skill1", "skill2"],
+  ...
+}}"""
+
+        response = claude_client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=2000,
+            temperature=0.3,
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+
+        content = response.content[0].text.strip()
+
+        # Extract JSON from response
+        import json
+        # Try to find JSON in response
+        json_start = content.find('{')
+        json_end = content.rfind('}') + 1
+
+        if json_start >= 0 and json_end > json_start:
+            json_str = content[json_start:json_end]
+            extracted_skills = json.loads(json_str)
+            print(f'✅ Claude API extracted {sum(len(v) for v in extracted_skills.values())} skills')
+            return extracted_skills
+        else:
+            print('⚠️ Could not parse JSON from Claude response')
+            return None
+
+    except Exception as e:
+        print(f'⚠️ Claude API error: {e}')
+        return None
 
 def extract_skills_from_description(job_description):
     """
     Extract skills, tools, and technologies from job description
+    Uses Claude API for intelligent extraction, falls back to regex
     """
     if not job_description or job_description.strip() == '':
         return {}
 
+    # Try Claude API first for intelligent extraction
+    if claude_client:
+        claude_skills = extract_skills_with_claude(job_description)
+        if claude_skills:
+            return claude_skills
+
+    # Fall back to regex-based extraction
+    print('ℹ️ Using regex-based skill extraction')
     jd_lower = job_description.lower()
 
     # Common technical skill patterns
