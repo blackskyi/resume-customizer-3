@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import re
-from io import BytesIO
 from anthropic import Anthropic
 
 app = Flask(__name__)
@@ -13,12 +12,20 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 app.config['OUTPUT_FOLDER'] = '/tmp/outputs'
+app.config['TEMPLATES_FOLDER'] = os.path.join(os.path.dirname(__file__), 'resume_templates')
 
 # Create folders if they don't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+os.makedirs(app.config['TEMPLATES_FOLDER'], exist_ok=True)
 
-ALLOWED_EXTENSIONS = {'docx'}
+# Resume content for different roles (will be customized by Claude)
+RESUME_TEMPLATES = {
+    'verification': 'verification_fpga_rtl',
+    'devops': 'devops',
+    'physical_design': 'physical_design',
+    'dft': 'dft'
+}
 
 # Initialize Claude API client
 claude_client = None
@@ -30,56 +37,152 @@ if api_key:
     except Exception as e:
         print(f'⚠️ Claude API initialization failed: {e}')
 else:
-    print('⚠️ ANTHROPIC_API_KEY not set - will use regex-only extraction')
+    print('⚠️ ANTHROPIC_API_KEY not set')
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def get_base_resume_content(role_type):
+    """Get the base resume content for a specific role"""
+    
+    if role_type == 'devops':
+        return """
+GOKUL PK
+Email: gprasann@usc.edu | Phone: +1 213 316 8527
+LinkedIn: linkedin.com/in/gokul-pk-4b16b9345
 
-def extract_skills_with_claude(job_description):
-    """
-    Use Claude API to intelligently extract technical skills from job description
-    """
+PROFESSIONAL SUMMARY
+Senior DevOps Engineer with 7+ years driving cloud infrastructure automation and CI/CD excellence. Reduced deployment time by 60% through GitOps implementation and cut infrastructure costs by 35% via containerization strategies. Expert in building scalable Kubernetes platforms, implementing DevSecOps pipelines, and architecting service mesh solutions that support 99.9% uptime for enterprise applications.
+
+TECHNICAL SKILLS
+• Cloud & Infrastructure: AWS (EC2, S3, EKS, Lambda, CloudFormation), Azure (AKS, ARM Templates), GCP
+• Container Orchestration: Kubernetes, Docker, Helm, ArgoCD, OpenShift, Kustomize
+• CI/CD & Automation: Jenkins, GitHub Actions, GitLab CI/CD, Tekton, Bamboo, TeamCity
+• Infrastructure as Code: Terraform, Pulumi, Ansible, Chef, CloudFormation, ARM Templates
+• Service Mesh & Observability: Istio, Linkerd, Prometheus, Grafana, Datadog, OpenTelemetry, Jaeger
+• Security & Compliance: SonarQube, Trivy, DevSecOps practices, IAM, Security Groups
+• Languages & Scripting: Python, Bash, PowerShell, Go, Groovy, Ruby, YAML, JSON, HCL
+• Databases: PostgreSQL, MySQL, MongoDB, RDS, DynamoDB
+
+WORK EXPERIENCE
+
+Senior DevOps Engineer | Silicon Bricks | Aug 2018 - Dec 2023
+• Architected GitOps-based continuous deployment using ArgoCD and Kubernetes, reducing deployment time from 2 hours to 20 minutes (83% improvement) and achieving 99.9% uptime across 50+ microservices
+• Led platform engineering reducing infrastructure costs by 35% through containerization with Docker and Kubernetes, optimizing resource utilization from 45% to 78%
+• Built cloud-native CI/CD pipelines using Tekton and GitHub Actions with integrated security scanning (Trivy, SonarQube), enabling 200+ weekly deployments with zero critical vulnerabilities
+• Implemented Istio service mesh for 40+ microservices, achieving 99.95% request success rate and reducing MTTD by 65% through distributed tracing with OpenTelemetry and Jaeger
+• Automated infrastructure provisioning across AWS, Azure, and GCP using Terraform and Pulumi, reducing setup time from 3 days to 4 hours with 100% reproducibility
+• Designed DevSecOps practices reducing security rollbacks by 78% and achieving SOC 2 compliance
+• Developed reusable Helm charts and Kustomize configurations for Kubernetes deployments, standardizing processes across 15+ teams and reducing configuration errors by 90%
+• Created comprehensive monitoring with Prometheus, Grafana, and Datadog, reducing incident response time by 55%
+• Mentored team of 6 junior DevOps engineers on cloud-native best practices, improving team velocity by 40%
+• Migrated legacy monolithic applications to containerized microservices, improving deployment frequency from monthly to daily releases
+
+DevOps Engineer - CI/CD & Configuration Management | Sanemi Technologies | Jul 2016 - Aug 2018
+• Engineered end-to-end Jenkins CI/CD pipelines for 30+ Java and .NET applications, reducing build/deployment time by 70%
+• Containerized 25+ legacy applications using Docker and deployed to Kubernetes clusters on Azure AKS, improving resource efficiency by 45%
+• Automated infrastructure configuration using Ansible playbooks for 100+ servers, reducing manual errors by 95%
+• Developed Chef cookbooks in Ruby for application deployment, managing 200+ EC2 instances across environments
+• Implemented Azure migration strategy using Azure Site Recovery, migrating 50+ workloads with zero data loss
+• Built custom Docker images and established registry workflows, reducing build time by 60%
+• Created automated backup and disaster recovery procedures achieving RPO of 4 hours and RTO of 2 hours
+• Designed network security architecture using Azure VNets, security groups, and load balancers, maintaining 99.8% availability
+
+EDUCATION
+University of Southern California — Master of Science, Electrical Engineering | Los Angeles, CA
+R.V. College of Engineering — Bachelor's in Electronics & Communications Engineering | Bangalore, India
+"""
+    
+    elif role_type == 'verification':
+        return """
+GOKUL P KUMAR
+Email: gocoolpkumar@gmail.com | Phone: +1 213 301 9692
+LinkedIn: linkedin.com/in/gokul-p-kumar-23912873
+
+EDUCATION
+University of Southern California - Master of Science, Electrical Engineering | Los Angeles, USA
+R.V. College of Engineering - Bachelors in Electronics and Communications Engineering | Bangalore, India
+
+PROJECTS
+• 32-bit Out-of-Order CPU Design (VHDL, Verilog, SystemVerilog) - Developed micro-architecture implementation for high-performance CPU with 48 physical registers, achieving 20% performance uplift. Integrated copy-free checkpointing (CFC) into SoC RTL, improving speculative execution accuracy by 15%. Ensured functional correctness with store buffer (SB) and store address buffer (SAB), reducing memory disambiguation latency by 10%. Achieved timing closure.
+
+• GPU Compute Tile Design (Assembly Language, Verilog, SystemVerilog) - Engineered GPGPU compute tile with SIMT stack and CUDA cores, enabling 2x faster matrix operations. Performed debugging features, optimized memory coalescing, reduced access latency by 30%.
+
+• Chip Multi-Processor (CMP) Design (Assembly Language, Verilog) - Architected 4-core CPU with MOESI cache coherence, achieving 40% speedup in parallel workloads. Integrated functional blocks into SoC RTL, implementing lockless LL/SC mechanisms.
+
+• Cache Design for Divider (VHDL) - Developed 16x8 fully associative cache CAM with LRU, improving performance by 35%. Performed design quality checks and met timing constraints.
+
+• PCIe PHY Layer Design (Verilog, SystemVerilog) - Engineered PCIe PHY layer with elastic buffer, de-skew FIFO, and 8b10b decoder, achieving 99.9% data integrity across clock crossings. Debugged with Vivado ChipScope.
+
+• AXI Interconnect for SoC (Verilog, SystemVerilog) - Designed 2x4 mesh AXI interconnect, improving data throughput by 28%. Optimized write response buffers, reducing latency by 15%.
+
+KEY SKILLS
+• Coding Languages: Python, C, C++, Verilog, VHDL, SystemVerilog, Assembly, Tcl, Perl, Cadence SKILL
+• EDA Tools: Cadence Virtuoso, HSPICE, QuestaSim, ModelSim, Vivado, Tetramax, IC-Manage, Synopsys VC Formal, SpyGlass CDC, Verdi
+• Design Expertise: ASIC Design, Custom Circuit Design, VLSI, CMOS Technology, RTL coding, RTL-to-GDSII flow, Micro-architecture, SoC integration, CDC, STA, PDK installation
+• Verification: UVM, Testbench development, Code Coverage, Functional Coverage, Assertion-based Verification, Formal Property Checking, Fault Simulation, DFT, ATPG, Scan chains, LEC
+• Additional Knowledge: RISC-V, ARM, FPGA, DDR, AXI, PCIe, Branch Prediction, Virtual Memory, NoC, Power/Timing Optimization, Neuromorphic computing
+
+EXPERIENCE
+
+Siliconbricks - Design Engineer | Aug 2018 - Dec 2023
+• Developed comprehensive UVM testbenches in SystemVerilog achieving 100% functional coverage for complex IP/SoC verification across multiple projects, reducing verification time by 20%
+• Designed and implemented UVM verification components including drivers, monitors, sequencers, scoreboards, and agents for industry-standard protocols (AXI, PCIe, DDR)
+• Led functional verification efforts for CPU cores, GPU compute tiles, and memory subsystems, identifying and resolving 150+ RTL bugs through systematic simulation and formal property checking
+• Achieved 100% code coverage and functional coverage across all verification projects, implementing coverage models and covergroups for comprehensive verification
+• Performed clock domain crossing (CDC) verification using Synopsys VC Formal and SpyGlass CDC, identifying and resolving metastability issues
+• Automated regression testing and CI/CD flows using Python and Perl scripts integrated with Jenkins, reducing regression runtime by 35%
+• Conducted low power verification with UPF-based power-aware simulation, validating power management units (PMU), power gating, and voltage scaling
+• Debugged complex verification failures using Synopsys Verdi and waveform analysis, reducing MTTR by 40%
+
+University of Southern California - Teaching Assistant for DFT | Los Angeles, CA | Aug 2024 - Present
+• Guided students on fault modeling, test pattern generation, ATPG, and fault simulation
+• Supervised hands-on projects including ATPG and Fault Simulation for SoC using C++, Python, and Verilog
+
+University of Southern California - Research Assistant | Los Angeles, CA | Jan 2025 - Present  
+• Characterized HfO2 memristors for neuromorphic computing, achieving 25% improvement in multi-level resistive switching accuracy
+• Designed and analyzed 12-bit Multiplier and Accumulator (MAC) and 512-bit SRAM in 45nm CMOS, achieving 15% power reduction and 20% faster computation
+
+LEADERSHIP AND ACHIEVEMENTS
+• Part of Team Vyoma, which won the NASA Systems Engineering Award
+• Multiple Best Short Film Awards showcasing communication skills and creativity
+"""
+    
+    else:
+        # Default generic resume
+        return """GOKUL PK - Professional Resume"""
+
+def customize_resume_with_claude(base_resume, job_description, role_type):
+    """Use Claude to customize resume based on job description"""
+    
     if not claude_client:
-        print('⚠️ Claude API not available, falling back to regex extraction')
-        return None
-
+        print('⚠️ Claude API not available, returning base resume')
+        return base_resume
+    
     try:
-        prompt = f"""You are an expert technical recruiter. Extract ALL technical skills, tools, technologies, and keywords from this job description.
+        prompt = f"""You are an expert resume writer and career coach. You will customize a resume to perfectly match a specific job description.
 
-Job Description:
+CURRENT RESUME:
+{base_resume}
+
+JOB DESCRIPTION:
 {job_description}
 
-Extract and categorize the technical requirements into these categories:
-- Programming Languages (e.g., Python, Java, .NET, C#, etc.)
-- Cloud Platforms (e.g., AWS, Azure, GCP)
-- DevOps & CI/CD Tools (e.g., Jenkins, GitLab CI/CD, GitHub Actions, Pipeline tools)
-- Infrastructure as Code (e.g., Terraform, Ansible, CloudFormation)
-- Containers & Orchestration (e.g., Docker, Kubernetes)
-- Databases (e.g., PostgreSQL, MongoDB, DynamoDB)
-- Monitoring & Observability (e.g., Prometheus, Grafana, DataDog)
-- Security Tools (e.g., Security Integration, Secrets Management)
-- AI/ML Technologies (e.g., AI/ML, Machine Learning, TensorFlow)
-- Operating Systems (e.g., Linux, Windows Administration)
-- Build & Deployment (e.g., Build Automation, Deployment Automation, Maven, Gradle)
-- Other Technical Skills
+INSTRUCTIONS:
+1. Analyze the job description and identify the key required skills, tools, technologies, and qualifications
+2. Reorganize and rewrite the TECHNICAL SKILLS section to emphasize the most relevant skills first
+3. Add any missing relevant skills from the job description that the candidate would reasonably have based on their experience
+4. Reorder bullet points in the EXPERIENCE section to highlight the most relevant achievements first
+5. Keep all the same jobs and projects - DO NOT remove anything, just reorder for relevance
+6. Maintain the same professional tone and writing style
+7. Keep all quantified achievements (percentages, numbers)
+8. DO NOT fabricate experience or achievements
+9. Keep the resume to a reasonable length
+10. Make it ATS-friendly by using keywords from the job description
 
-IMPORTANT:
-- Extract EXACT phrases from the job description (e.g., if it says ".NET Build", extract ".NET Build" not just ".NET")
-- Include compound terms (e.g., "GitLab CI/CD", "Pipeline Mastery", "Security Integration")
-- Focus on TECHNICAL keywords only, ignore soft skills
-- Include years of experience requirements with the skill (e.g., "4+ yrs Terraform")
-
-Return ONLY a JSON object in this format:
-{{
-  "Programming Languages": ["skill1", "skill2"],
-  "Cloud Platforms": ["skill1"],
-  "DevOps & CI/CD Tools": ["skill1", "skill2"],
-  ...
-}}"""
+Return the COMPLETE customized resume in plain text format. Maintain the same structure and formatting.
+"""
 
         response = claude_client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=2000,
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
             temperature=0.3,
             messages=[{
                 "role": "user",
@@ -87,367 +190,68 @@ Return ONLY a JSON object in this format:
             }]
         )
 
-        content = response.content[0].text.strip()
-
-        # Extract JSON from response
-        import json
-        # Try to find JSON in response
-        json_start = content.find('{')
-        json_end = content.rfind('}') + 1
-
-        if json_start >= 0 and json_end > json_start:
-            json_str = content[json_start:json_end]
-            extracted_skills = json.loads(json_str)
-            print(f'✅ Claude API extracted {sum(len(v) for v in extracted_skills.values())} skills')
-            return extracted_skills
-        else:
-            print('⚠️ Could not parse JSON from Claude response')
-            return None
+        customized_resume = response.content[0].text.strip()
+        print(f'✅ Resume customized with Claude for {role_type} position')
+        return customized_resume
 
     except Exception as e:
-        print(f'⚠️ Claude API error: {e}')
-        return None
+        print(f'⚠️ Error customizing with Claude: {e}')
+        return base_resume
 
-def extract_skills_from_description(job_description):
-    """
-    Extract skills, tools, and technologies from job description
-    Uses Claude API for intelligent extraction, falls back to regex
-    """
-    if not job_description or job_description.strip() == '':
-        return {}
-
-    # Try Claude API first for intelligent extraction
-    if claude_client:
-        claude_skills = extract_skills_with_claude(job_description)
-        if claude_skills:
-            return claude_skills
-
-    # Fall back to regex-based extraction
-    print('ℹ️ Using regex-based skill extraction')
-    jd_lower = job_description.lower()
-
-    # Common technical skill patterns
-    skill_patterns = {
-        'Programming Languages': r'\b(python|java|javascript|typescript|c\+\+|c#|ruby|go|rust|scala|kotlin|swift|r|matlab|perl|tcl|bash|shell|verilog|systemverilog|vhdl)\b',
-        'Web Technologies': r'\b(react|angular|vue|node\.?js|express|django|flask|spring|\.net|asp\.net|html|css|jquery|bootstrap|tailwind)\b',
-        'Databases': r'\b(sql|mysql|postgresql|mongodb|oracle|redis|cassandra|dynamodb|sqlite|mariadb|elasticsearch)\b',
-        'Cloud & DevOps': r'\b(aws|azure|gcp|docker|kubernetes|jenkins|terraform|ansible|ci/cd|git|github|gitlab|bitbucket)\b',
-        'Data & ML': r'\b(machine learning|deep learning|tensorflow|pytorch|scikit-learn|pandas|numpy|spark|hadoop|kafka|airflow)\b',
-        'Testing & QA': r'\b(junit|pytest|selenium|cypress|jest|mocha|atpg|dft|bist|mbist|lbist|scan|jtag)\b',
-        'Methodologies': r'\b(agile|scrum|kanban|devops|tdd|bdd|ci/cd|waterfall)\b',
-        'Hardware/Semiconductor Tools': r'\b(tessent|testmax|fastscan|tetramax|dftmax|spyglass|primetime|design compiler|genus|icc|innovus|encounter|calibre|hercules|virtuoso|spectre|hspice|cadence|synopsys|mentor|siemens|xilinx|altera|quartus|vivado)\b',
-    }
-
-    extracted_skills = {}
-
-    # Extract skills by pattern
-    for category, pattern in skill_patterns.items():
-        matches = re.findall(pattern, jd_lower, re.IGNORECASE)
-        if matches:
-            # Deduplicate and capitalize properly
-            unique_skills = list(set(matches))
-            extracted_skills[category] = unique_skills
-
-    # Extract requirements/qualifications sections
-    requirements = []
-    req_patterns = [
-        r'(?:requirements?|qualifications?|skills?)[:\s]+([^\n]+(?:\n[^\n]+){0,20})',
-        r'(?:must have|required)[:\s]+([^\n]+(?:\n[^\n]+){0,10})',
-        r'(?:experience with|proficiency in)[:\s]+([^\n]+(?:\n[^\n]+){0,10})'
-    ]
-
-    for pattern in req_patterns:
-        matches = re.findall(pattern, job_description, re.IGNORECASE | re.MULTILINE)
-        requirements.extend(matches)
-
-    # Extract bullet points (common in job descriptions)
-    bullet_points = re.findall(r'[•\-\*]\s*([^\n]+)', job_description)
-
-    # Combine all extracted text
-    all_requirements_text = ' '.join(requirements + bullet_points)
-
-    # Extract any mentioned tools/technologies (capitalized words or known acronyms)
-    tech_words = re.findall(r'\b[A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*)*\b', all_requirements_text)
-
-    # Comprehensive filter for non-technical words
-    non_technical_words = {
-        # Articles, prepositions, conjunctions
-        'The', 'A', 'An', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'And', 'Or', 'But', 'Not',
-        'This', 'That', 'These', 'Those', 'Will', 'Should', 'Must', 'Can', 'May', 'Has', 'Have', 'Had',
-        'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being', 'Do', 'Does', 'Did', 'Done',
-
-        # Time-related words
-        'Years', 'Year', 'Months', 'Month', 'Weeks', 'Week', 'Days', 'Day', 'Duration', 'Time',
-        'Hours', 'Hour', 'Experience', 'Experienced',
-
-        # Location-related words
-        'Location', 'Remote', 'Onsite', 'Hybrid', 'Office', 'City', 'State', 'Country',
-        'Santa', 'Clara', 'San', 'Francisco', 'Jose', 'Diego', 'Angeles', 'York', 'Seattle',
-        'Austin', 'Boston', 'Denver', 'Portland', 'Chicago', 'Atlanta', 'Dallas', 'Houston',
-        'California', 'Texas', 'Washington', 'Oregon', 'Colorado', 'Massachusetts',
-
-        # Job-related generic words
-        'Job', 'Position', 'Role', 'Candidate', 'Candidates', 'Team', 'Member', 'Members',
-        'Company', 'Work', 'Working', 'Works', 'Worked', 'Responsibilities', 'Responsibility',
-        'Requirements', 'Requirement', 'Qualifications', 'Qualification', 'Skills', 'Skill',
-        'Description', 'Descriptions',
-
-        # Descriptive words
-        'Strong', 'Excellent', 'Good', 'Great', 'Best', 'Better', 'Deep', 'Solid', 'Proven',
-        'Ability', 'Abilities', 'Knowledge', 'Understanding', 'Preferred', 'Required', 'Desired',
-        'Plus', 'Bonus', 'Nice', 'Including', 'Such', 'Other', 'Various', 'Multiple', 'Several',
-
-        # Action/Status words
-        'Conduct', 'Provide', 'Perform', 'Develop', 'Create', 'Build', 'Design', 'Implement',
-        'Maintain', 'Support', 'Manage', 'Lead', 'Coordinate', 'Collaborate', 'Communicate',
-        'Availability', 'Available', 'Immediately', 'Successful', 'Completion',
-
-        # Degree/Education words
-        'Degree', 'Bachelor', 'Masters', 'PhD', 'BS', 'MS', 'BA', 'MA', 'Engineering', 'Science',
-        'Computer', 'Electrical', 'Mechanical', 'Software', 'Hardware',
-
-        # Generic terms
-        'Thanks', 'Please', 'Note', 'Include', 'Summary', 'Overview', 'Description', 'Details',
-        'Information', 'Contact', 'Apply', 'Application', 'Resume', 'Cover', 'Letter',
-
-        # Acronyms that are not technical
-        'GLS', 'USA', 'US'
-    }
-
-    # Additional pattern-based filters for non-technical content
-    def is_technical_term(word):
-        # Filter out words that are clearly non-technical
-        if word in non_technical_words:
-            return False
-        if len(word) < 3:  # Too short
-            return False
-        if word.lower() in ['inc', 'llc', 'ltd', 'corp', 'corporation']:  # Company suffixes
-            return False
-        if re.match(r'^[A-Z][a-z]+$', word) and word not in ['Git', 'Rust', 'Go', 'Java', 'Ruby', 'Swift', 'Perl']:
-            # Single capitalized word (likely a name/location), unless it's a known language
-            return False
-        return True
-
-    tech_words = [word for word in tech_words if is_technical_term(word)]
-
-    # Additional known technical terms/tools to look for (case-insensitive)
-    known_tech_patterns = r'\b(verilog|systemverilog|vhdl|atpg|dft|bist|mbist|lbist|jtag|scan|testmax|tessent|fastscan|spyglass|lint|cdc|rdc|sta|synthesis|primetime|design compiler|genus|conformal|formality|calibre|icv|hercules|dracula|assura|mentor|cadence|synopsys|siemens|xilinx|altera|fpga|asic|soc|rtl|gls|netlist|sdf|spef|sdcl|upf|cpf)\b'
-
-    additional_tech = re.findall(known_tech_patterns, jd_lower, re.IGNORECASE)
-    if additional_tech:
-        # Capitalize properly
-        tech_words.extend([t.upper() if len(t) <= 4 else t.title() for t in set(additional_tech)])
-
-    if tech_words:
-        extracted_skills['Tools & Technologies'] = list(set(tech_words))[:15]  # Limit to top 15
-
-    return extracted_skills
-
-
-def analyze_gaps(current_resume_path, job_description):
-    """
-    Analyze gaps between current resume and job requirements
-    """
-    # Extract skills from job description
-    job_tools = extract_skills_from_description(job_description)
-
-    if not job_tools:
-        # Fallback to generic professional skills if no job description provided
-        job_tools = {
-            'Core Skills': ['Communication', 'Problem Solving', 'Team Collaboration', 'Time Management']
-        }
-
-    # Read current resume
-    doc = Document(current_resume_path)
-    resume_text = '\n'.join([para.text for para in doc.paragraphs]).lower()
-
-    # Find missing tools
-    missing_tools = {}
-    for category, tools in job_tools.items():
-        missing = []
-        for tool in tools:
-            # Check if tool or its key component is in resume
-            tool_keywords = str(tool).lower().replace('(', '').replace(')', '').split()
-            if not any(keyword in resume_text for keyword in tool_keywords if len(keyword) > 2):
-                missing.append(tool)
-        if missing:
-            missing_tools[category] = missing
-
-    return missing_tools, job_tools
-
-def enhance_resume(input_path, output_path, job_description):
-    """
-    Enhance resume by adding missing tools and reorganizing skills section
-    """
-    # Analyze gaps
-    missing_tools, all_job_tools = analyze_gaps(input_path, job_description)
-
-    # Load document
-    doc = Document(input_path)
-
-    # Find the Key Skills section
-    skills_section_index = None
-    for i, para in enumerate(doc.paragraphs):
-        if 'Key Skills' in para.text or 'Skills' in para.text or 'SKILLS' in para.text.upper():
-            skills_section_index = i
-            break
-
-    if skills_section_index is None:
-        print("Warning: Could not find 'Key Skills' section. Skills will be added at the end.")
-        skills_section_index = len(doc.paragraphs) - 1
-
-    # Read existing skills from resume
-    existing_skills = {}
-    if skills_section_index is not None:
-        for i in range(skills_section_index + 1, len(doc.paragraphs)):
-            para_text = doc.paragraphs[i].text.strip()
-            if not para_text:
-                continue
-            # Check if it's a new section header (capitalized, no colon in first part)
-            if para_text and para_text[0].isupper() and ':' not in para_text[:20] and len(para_text) > 20:
-                break
-            # Try to parse skill category lines
-            if ':' in para_text:
-                parts = para_text.split(':', 1)
-                if len(parts) == 2:
-                    category = parts[0].strip()
-                    skills = [s.strip() for s in parts[1].split(',')]
-                    existing_skills[category] = skills
-
-    # Merge job requirements with existing skills
-    enhanced_skills = {}
-
-    # First, preserve existing skills
-    for category, skills in existing_skills.items():
-        enhanced_skills[category] = skills
-
-    # Then add missing skills from job description
-    for category, tools in all_job_tools.items():
-        if category in enhanced_skills:
-            # Merge with existing
-            for tool in tools:
-                tool_str = str(tool).title() if isinstance(tool, str) else str(tool)
-                # Check if skill is already there
-                if not any(tool_str.lower() in existing.lower() for existing in enhanced_skills[category]):
-                    enhanced_skills[category].append(tool_str)
+def create_docx_from_text(resume_text, output_path):
+    """Create a DOCX file from plain text resume"""
+    
+    doc = Document()
+    
+    # Set narrow margins
+    sections = doc.sections
+    for section in sections:
+        section.top_margin = Inches(0.5)
+        section.bottom_margin = Inches(0.5)
+        section.left_margin = Inches(0.7)
+        section.right_margin = Inches(0.7)
+    
+    lines = resume_text.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        
+        if not line:
+            # Empty line
+            doc.add_paragraph()
+            continue
+        
+        # Detect headers (all caps or starts with specific keywords)
+        if line.isupper() or line.startswith('GOKUL'):
+            # Header
+            p = doc.add_paragraph(line)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER if 'GOKUL' in line or '@' in line else WD_ALIGN_PARAGRAPH.LEFT
+            run = p.runs[0]
+            run.font.bold = True
+            run.font.size = Pt(14) if 'GOKUL' in line else Pt(12)
+            run.font.color.rgb = RGBColor(0, 56, 168)  # Blue color
+        
+        elif line.startswith('•'):
+            # Bullet point
+            p = doc.add_paragraph(line[1:].strip(), style='List Bullet')
+            run = p.runs[0]
+            run.font.size = Pt(10)
+        
+        elif '|' in line and any(keyword in line for keyword in ['Engineer', 'Assistant', 'Technologies', 'Bricks']):
+            # Job title line
+            p = doc.add_paragraph(line)
+            run = p.runs[0]
+            run.font.bold = True
+            run.font.size = Pt(11)
+        
         else:
-            # Add new category
-            enhanced_skills[category] = [str(tool).title() if isinstance(tool, str) else str(tool) for tool in tools]
-
-    # Modify the existing skills section in-place to preserve all formatting
-    if skills_section_index is not None:
-        # Find existing skill lines and update them
-        skill_lines_indices = []
-        for i in range(skills_section_index + 1, len(doc.paragraphs)):
-            para_text = doc.paragraphs[i].text.strip()
-            if not para_text:
-                continue
-            # Check if we've reached the next major section
-            if para_text and para_text[0].isupper() and ':' not in para_text[:20] and len(para_text) > 20:
-                break
-            # This is a skill line
-            if ':' in para_text:
-                skill_lines_indices.append(i)
-
-        # Update existing skill lines and track how many we've used
-        skills_list = list(enhanced_skills.items())
-
-        for idx, line_idx in enumerate(skill_lines_indices):
-            if idx < len(skills_list):
-                category, skills = skills_list[idx]
-                para = doc.paragraphs[line_idx]
-
-                # Clear existing content
-                para.clear()
-
-                # Add new content with formatting
-                run1 = para.add_run(f"{category}: ")
-                run1.bold = True
-                run2 = para.add_run(', '.join(skills))
-
-        # If we have more skills than existing lines, add new paragraphs
-        if len(skills_list) > len(skill_lines_indices):
-            # Find where to insert (after last skill line or after header)
-            insert_after_idx = skill_lines_indices[-1] if skill_lines_indices else skills_section_index
-
-            for idx in range(len(skill_lines_indices), len(skills_list)):
-                category, skills = skills_list[idx]
-
-                # Insert paragraph at the right position
-                new_para = doc.add_paragraph()
-                run1 = new_para.add_run(f"{category}: ")
-                run1.bold = True
-                run2 = new_para.add_run(', '.join(skills))
-
-                # Move it to the correct position
-                para_element = new_para._element
-                para_element.getparent().remove(para_element)
-                doc.paragraphs[insert_after_idx]._element.addnext(para_element)
-                insert_after_idx += 1
-
-    # Save enhanced resume (preserves all original formatting, layout, fonts, spacing)
+            # Regular paragraph
+            p = doc.add_paragraph(line)
+            run = p.runs[0]
+            run.font.size = Pt(10)
+    
     doc.save(output_path)
-
-    return doc, missing_tools
-
-def create_gap_analysis_report(input_path, job_description):
-    """
-    Create a detailed gap analysis report
-    """
-    missing_tools, all_job_tools = analyze_gaps(input_path, job_description)
-
-    report = []
-    report.append("="*70)
-    report.append("GAP ANALYSIS: YOUR RESUME vs. JOB REQUIREMENTS")
-    report.append("="*70)
-    report.append("")
-
-    report.append("-"*70)
-    report.append("SKILLS IDENTIFIED FROM JOB DESCRIPTION:")
-    report.append("-"*70)
-    report.append("")
-
-    for category, tools in all_job_tools.items():
-        report.append(f"\n{category}:")
-        for tool in tools[:10]:  # Limit to first 10 per category
-            report.append(f"  • {tool}")
-
-    report.append("")
-    report.append("-"*70)
-    report.append("SKILLS/TOOLS MISSING FROM YOUR RESUME:")
-    report.append("-"*70)
-    report.append("")
-
-    if missing_tools:
-        for category, tools in missing_tools.items():
-            report.append(f"\n{category}:")
-            for tool in tools:
-                report.append(f"  • {tool}")
-    else:
-        report.append("Great! Your resume already contains most of the required skills.")
-
-    report.append("")
-    report.append("="*70)
-    report.append("RECOMMENDATIONS:")
-    report.append("="*70)
-    report.append("")
-
-    recommendations = [
-        "Review the enhanced resume and verify the added skills match your experience",
-        "Add specific project examples demonstrating these skills",
-        "Customize the professional summary to highlight key technologies",
-        "Quantify your achievements where possible (e.g., improved performance by X%)",
-        "Ensure your experience section demonstrates the listed skills in action",
-        "Proofread for consistency in terminology and formatting"
-    ]
-
-    for i, rec in enumerate(recommendations, 1):
-        report.append(f"{i}. {rec}")
-
-    report.append("")
-    report.append("="*70)
-
-    return '\n'.join(report)
+    return output_path
 
 @app.route('/')
 def index():
@@ -455,52 +259,32 @@ def index():
 
 @app.route('/enhance', methods=['POST'])
 def enhance():
-    if 'resume' not in request.files:
-        flash('No file uploaded')
-        return redirect(url_for('index'))
-
-    file = request.files['resume']
     job_description = request.form.get('job_description', '').strip()
-
-    if file.filename == '':
-        flash('No file selected')
-        return redirect(url_for('index'))
+    role_type = request.form.get('role_type', 'devops')
 
     if not job_description:
         flash('Please provide a job description')
         return redirect(url_for('index'))
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(input_path)
-
-        # Generate output filename
-        base_name = os.path.splitext(filename)[0]
-        output_filename = f"{base_name}_Customized.docx"
+    try:
+        # Get base resume content
+        base_resume = get_base_resume_content(role_type)
+        
+        # Customize with Claude
+        customized_resume = customize_resume_with_claude(base_resume, job_description, role_type)
+        
+        # Create DOCX
+        output_filename = f'Gokul_PK_{role_type.title()}_Resume_Customized.docx'
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-
-        try:
-            # Enhance the resume
-            enhanced_doc, missing_tools = enhance_resume(input_path, output_path, job_description)
-
-            # Create gap analysis report
-            gap_report = create_gap_analysis_report(input_path, job_description)
-
-            # Clean up input file
-            os.remove(input_path)
-
-            return render_template('result.html',
-                                   output_filename=output_filename,
-                                   missing_tools=missing_tools,
-                                   gap_report=gap_report)
-        except Exception as e:
-            flash(f'Error processing resume: {str(e)}')
-            if os.path.exists(input_path):
-                os.remove(input_path)
-            return redirect(url_for('index'))
-    else:
-        flash('Invalid file type. Please upload a .docx file')
+        
+        create_docx_from_text(customized_resume, output_path)
+        
+        return render_template('result.html',
+                               output_filename=output_filename,
+                               missing_tools={},
+                               gap_report=f"Resume customized for {role_type} position using AI")
+    except Exception as e:
+        flash(f'Error processing resume: {str(e)}')
         return redirect(url_for('index'))
 
 @app.route('/download/<filename>')
@@ -511,6 +295,84 @@ def download(filename):
     else:
         flash('File not found')
         return redirect(url_for('index'))
+
+# ============================================================================
+# API ENDPOINTS FOR GOOGLE APPS SCRIPT INTEGRATION
+# ============================================================================
+
+@app.route('/api/customize-resume', methods=['POST'])
+def api_customize_resume():
+    """
+    API endpoint for Google Apps Script to customize resume
+    Expected: form data with 'requirements' text and 'role_type'
+    Returns: JSON with success status and filename
+    """
+    try:
+        job_requirements = request.form.get('requirements', '').strip()
+        role_type = request.form.get('role_type', 'devops')
+
+        if not job_requirements:
+            return {'success': False, 'message': 'No job requirements provided'}, 400
+
+        # Get base resume content
+        base_resume = get_base_resume_content(role_type)
+        
+        # Customize with Claude
+        customized_resume = customize_resume_with_claude(base_resume, job_requirements, role_type)
+        
+        # Create DOCX
+        output_filename = f'Gokul_PK_{role_type.title()}_Resume_Customized.docx'
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        
+        create_docx_from_text(customized_resume, output_path)
+
+        # Return success with file path
+        return {
+            'success': True,
+            'message': 'Resume customized successfully',
+            'filename': output_filename
+        }, 200
+
+    except Exception as e:
+        return {'success': False, 'message': f'Error: {str(e)}'}, 500
+
+
+@app.route('/api/download-resume/<filename>', methods=['GET'])
+def api_download_resume(filename):
+    """
+    API endpoint to download a customized resume
+    Returns the file directly
+    """
+    try:
+        # Sanitize filename for security
+        safe_filename = secure_filename(filename)
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], safe_filename)
+        
+        if os.path.exists(output_path):
+            return send_file(
+                output_path,
+                as_attachment=True,
+                download_name=safe_filename,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+        else:
+            return {'success': False, 'message': 'File not found'}, 404
+            
+    except Exception as e:
+        return {'success': False, 'message': f'Error: {str(e)}'}, 500
+
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    """
+    Health check endpoint
+    """
+    return {
+        'status': 'healthy',
+        'service': 'resume-customizer-3-ai',
+        'claude_api': 'enabled' if claude_client else 'disabled',
+        'version': '3.0-ai-customization'
+    }, 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

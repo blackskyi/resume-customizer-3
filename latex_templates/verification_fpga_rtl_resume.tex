@@ -1,0 +1,102 @@
+\documentclass[11pt,a4paper,sans]{moderncv}
+\moderncvstyle{banking}
+\moderncvcolor{blue}
+
+% Character encoding
+\usepackage[utf8]{inputenc}
+
+% Adjust the page margins
+\usepackage[scale=0.92]{geometry}
+
+\usepackage{import}
+
+\definecolor{color1}{rgb}{0.22,0.45,0.70}
+
+\begin{document}
+\fontsize{9}{11}\selectfont % Setting 9pt font size with 11pt line spacing
+\begin{center}
+\textbf{\fontsize{21}{17}\selectfont {\textcolor{color1}{Gokul P Kumar}}} % Slightly larger than v2's 20/16
+\vspace{2pt}
+\\\fontsize{10}{10}\selectfont % Slightly larger than v2's 9/9
+    {{\href{mailto:gocoolpkumar@gmail.com}{gocoolpkumar@gmail.com} $|$ 
++1 213 301 9692 $|$ 
+\href{https://www.google.com/maps/place/325+W+Adams+Blvd,+Los+Angeles,+CA+90007,+United+States}{Address} 
+ $|$ 
+\hspace{0.2em} \raisebox{-0.45 em}{\href{https://www.linkedin.com/in/gokul-p-kumar-23912873}{\includegraphics[height=1.5 em]{Linkedin-Logo.jpg}}}}
+ }
+\end{center}
+\vspace{-5pt}
+
+% ---- Education ----
+\section{Education}
+\vspace{-5pt}
+\textbf{University of Southern California}, Master of Science, Electrical Engineering \hfill Los Angeles, U.S.A \\
+\textbf{R.V. College of Engineering}, Bachelors in Electronics and Communications Engineering \hfill Bangalore, India
+
+% ---- Projects ----
+\section{Projects}
+\vspace{-5pt}
+\begin{itemize}
+\item \textbf{32-bit Out-of-Order CPU Design} \textbar{ VHDL, Verilog, SystemVerilog} - Developed \textbf{micro-architecture implementation} for a \textbf{high-performance CPU} with \textbf{48 physical registers}, achieving \textbf{20\% performance uplift}. Integrated \textbf{copy-free checkpointing (CFC)} into SoC RTL, improving speculative execution accuracy by \textbf{15\%}. Ensured \textbf{functional correctness} with \textbf{store buffer (SB)} and \textbf{store address buffer (SAB)}, reducing \textbf{memory disambiguation latency} by \textbf{10\%}. Achieved \textbf{timing closure}.
+\item \textbf{GPU Compute Tile Design} \textbar{ Assembly Language, Verilog, SystemVerilog} - Engineered a \textbf{GPGPU compute tile} with \textbf{SIMT stack} and \textbf{CUDA cores}, enabling \textbf{2x faster matrix operations}. Performed \textbf{debugging features}, optimized \textbf{memory coalescing}, reduced access latency by \textbf{30\%}.
+\item \textbf{Chip Multi-Processor (CMP) Design} \textbar{ Assembly Language, Verilog} - Architected a \textbf{4-core CPU} with \textbf{MOESI cache coherence}, achieving \textbf{40\% speedup} in parallel workloads. Integrated functional blocks into SoC RTL, implementing lockless \textbf{LL/SC mechanisms}.
+\item \textbf{Cache Design for Divider} \textbar{ VHDL} - Developed \textbf{16x8 fully associative cache CAM} with LRU, improving performance by \textbf{35\%}. Performed \textbf{design quality checks} and met \textbf{timing constraints}.
+\item \textbf{PCIe PHY Layer Design} \textbar{ Verilog, SystemVerilog} - Engineered \textbf{PCIe PHY layer} with elastic buffer, de-skew FIFO, and 8b10b decoder, achieving \textbf{99.9\% data integrity} across \textbf{clock crossings}. Debugged with \textbf{Vivado ChipScope}.
+\item \textbf{AXI Interconnect for SoC} \textbar{ Verilog, SystemVerilog} - Designed a \textbf{2x4 mesh AXI interconnect}, improving data throughput by \textbf{28\%}. Optimized \textbf{write response buffers}, reducing latency by \textbf{15\%}.
+\item \textbf{Branch Predictor Optimization} \textbar{ C++} - Built multiple predictors with Intel PIN Tool, achieving \textbf{92\% prediction accuracy}. Reduced pipeline stalls by \textbf{18\%}.
+\item \textbf{5-stage Pipelined DLX CPU} \textbar{ Verilog} - Designed CPU with \textbf{hazard detection units}, reducing stalls by \textbf{30\%}. Integrated synchronous SRAM into SoC RTL, achieving \textbf{25\% faster memory access}.
+\end{itemize}
+
+% ---- Key Skills ----
+\section{Key Skills}
+\vspace{-5pt}
+\begin{itemize}
+% SKILLS_PLACEHOLDER - This section will be customized based on job requirements
+\item \textbf{Coding Languages:} Python, C, C++, Verilog, VHDL, SystemVerilog, Assembly, Tcl, Perl, Cadence SKILL
+\item \textbf{EDA Tools:} Cadence Virtuoso, HSPICE, QuestaSim, ModelSim, Vivado, Tetramax, IC-Manage, Synopsys VC Formal, SpyGlass CDC, Verdi
+\item \textbf{Design Expertise:} ASIC Design, Custom Circuit Design, VLSI, CMOS Technology, RTL coding, RTL-to-GDSII flow, Micro-architecture, SoC integration, CDC, STA, PDK installation and support, technology files, pcells, netlisters
+\item \textbf{Verification:} UVM, Testbench development, Code Coverage, Functional Coverage, Assertion-based Verification, Formal Property Checking, Fault Simulation, DFT, ATPG, Scan chains, LEC
+\item \textbf{Additional Knowledge:} RISC-V, ARM, FPGA, DDR, AXI, PCIe, Branch Prediction, Virtual Memory, NoC, Power/Timing Optimization, Neuromorphic computing (Memristor, ReRAM, SRAM)
+\end{itemize}
+
+% ---- Experience ----
+\section{Experience}
+\vspace{-5pt}
+\begin{itemize}
+\item \textbf{Siliconbricks}, Design Engineer \hfill Aug 2018 -- Dec 2023
+\begin{itemize}
+\item Developed comprehensive \textbf{UVM testbenches} in SystemVerilog achieving \textbf{100\% functional coverage} for complex IP/SoC verification across multiple projects, reducing verification time by \textbf{20\%} through optimized test sequences and constrained random stimulus generation.
+\item Designed and implemented \textbf{UVM verification components} including drivers, monitors, sequencers, scoreboards, and agents for industry-standard protocols (\textbf{AXI, PCIe, DDR}), ensuring robust verification environments for high-performance cloud compute blocks.
+\item Led functional verification efforts for \textbf{CPU cores, GPU compute tiles, and memory subsystems}, collaborating closely with design teams to identify and resolve \textbf{150+ RTL bugs} through systematic simulation, assertion-based verification, and formal property checking.
+\item Achieved \textbf{100\% code coverage and functional coverage} across all verification projects, implementing coverage models, cross-coverage, and covergroups to ensure comprehensive verification of corner cases and edge conditions for Microsoft Azure workloads.
+\item Performed \textbf{clock domain crossing (CDC) verification} using Synopsys VC Formal and SpyGlass CDC, identifying and resolving metastability issues and ensuring data integrity across asynchronous clock domains in multi-clock SoC designs.
+\item Automated regression testing and CI/CD flows using \textbf{Python and Perl scripts} integrated with Jenkins, reducing regression runtime by \textbf{35\%} and enabling nightly automated verification runs for continuous quality monitoring.
+\item Conducted \textbf{low power verification} with UPF-based power-aware simulation, validating power management units (PMU), power gating, voltage scaling, and retention strategies to ensure functional correctness across multiple power domains.
+\item Debugged complex verification failures using \textbf{Synopsys Verdi}, waveform analysis, and assertion debugging, reducing mean time to resolution (MTTR) by \textbf{40\%} through systematic root cause analysis and efficient debug methodologies.
+
+
+\end{itemize}
+
+\item \textbf{University of Southern California}, Teaching Assistant for DFT \hfill Los Angeles, CA, Aug 2024 -- Present
+\begin{itemize}
+\item Guided students on \textbf{fault modeling}, \textbf{test pattern generation}, \textbf{ATPG}, and \textbf{fault simulation}, emphasizing \textbf{DFT concepts} like scan chains and transition faults.
+\item Supervised hands-on projects including \textbf{ATPG and Fault Simulation for SoC} using \textbf{C++, Python, and Verilog}, implementing \textbf{D and PODEM algorithms} and achieving \textbf{95\% stuck-at fault coverage}. Optimized \textbf{RTPG} and ensured \textbf{timing closure} for large-scale SoC test designs.
+\end{itemize}
+
+\item \textbf{University of Southern California}, Research Assistant \hfill Los Angeles, CA, Jan 2025 -- Present
+\begin{itemize}
+\item Characterized \textbf{HfO2 memristors} for \textbf{neuromorphic computing}, achieving \textbf{25\% improvement in multi-level resistive switching accuracy}.
+\item Designed and analyzed a \textbf{12-bit Multiplier and Accumulator (MAC)} and a \textbf{512-bit SRAM} in \textbf{45nm CMOS}, achieving \textbf{15\% power reduction}, \textbf{20\% faster computation}, and \textbf{22\% latency reduction}. Validated in \textbf{Cadence Virtuoso, HSPICE}, ensuring LVS/DRC compliance.
+\end{itemize}
+\end{itemize}
+
+
+% ---- Leadership ----
+\section{Leadership and Achievements}
+\vspace{-5pt}
+\begin{itemize}
+\item Part of Team Vyoma, which won the \textbf{\underline{\href{https://timesofindia.indiatimes.com/city/bengaluru/rv-college-of-engineering-students-bag-nasa-award/articleshow/19734527.cms}{NASA Systems Engineering Award}}}, demonstrating \textbf{growth mindset} and teamwork.
+\item \textbf{Multiple Best Short Film Awards} - \href{https://www.youtube.com/watch?v=dhl5R1QvKgs}{Movie 1} $|$ \href{https://www.youtube.com/watch?v=kGXftdPxnk8}{Movie 2} $|$ \href{https://www.youtube.com/watch?v=1qm0VGsL1yM}{Movie 3} $|$ \href{https://www.youtube.com/watch?v=1yemYWPXwpw}{Movie 4}, showcasing \textbf{communication skills} and creativity.
+\end{itemize}
+
+\end{document}
